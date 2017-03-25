@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AWS SDK for JavaScript - Sample Application</title>
+<script src="https://sdk.amazonaws.com/js/aws-sdk-2.4.8.min.js"></script>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+</head>
+<body class="container-fluid">
+	<div class="row">
+		<h1>Trabajando con un bucket de S3 en AWS</h1>
+		<div class="col-md-5">
+			<h3 id="container"></h3>
+				<p>Contenido del bucket</p>
+			<div id="listaElementos"></div>
+		</div>
+		
+		<div class="col-md-3">
+			<h3>Subir un archivo al bucket</h3>
+			<label for="fileUpload">Archivo para subir al bucket</label>
+			<input type="file" id="fileUpload" onchange="uploadFile()"/>
+		</div>
+
+		<div class="col-md-4">
+			<h3>ELIMINAR un archivo del bucket</h3>
+			<label for="borrarArchivo">Eliminar archivo del bucket</label>
+			<br>
+			<button id="borrarArchivo" class="btn btn-danger" disabled onclick="eliminarElemento(event)">Se eliminara el archivo</button>
+		</div>
+	</div>
+
+
+	<script>
+							//Credentials(accessKeyId, secretAccessKey, sessionToken = null)
+		var credenciales=new AWS.Credentials('AKIAJO2RVTTSDUET3OKQ','OWVXn/G+cI41g9oh76wGk2oHcL/OpRRwS4gYhNSo-');
+		var bucketName='cross-origin-first-egalicia';
+		var bucketRegion='us-west-1';
+		var S3 = new AWS.S3({region:bucketRegion, maxRetries :3,sslEnabled :false,credentials:credenciales,params: {Bucket: bucketName}});
+		S3.config.apiVersions = {s3: '2006-03-01'};
+		
+		function listElements(){
+		S3.listObjects(function(err,data){
+			if (err) console.error(err, err.stack); // an error occurred
+			else{     
+			// successful response
+				var contenedor=data.Name;
+				var objetos=data.Contents;
+			}
+			document.getElementById("container").innerText="Explorando el bucket: "+contenedor;
+			var listaElementos=document.getElementById("listaElementos");
+
+			var theHTMLString = '<ol>';
+			
+			var tempObject=[];
+				for(var propertyName in objetos) {
+					tempObject=Object.values(objetos[propertyName])[0];
+					theHTMLString += '<li ondblclick="porEliminar(event)">' + decodeURIComponent(tempObject) + '</li>';
+				}
+			theHTMLString += '</ol>';
+			
+			listaElementos.innerHTML=theHTMLString;
+			});
+		}
+
+		function porEliminar(event){
+			var botonEliminar=document.getElementById("borrarArchivo");
+			var nombreArchivoEliminar=event.target.textContent;
+			botonEliminar.innerHTML=' Se eliminará el archivo <strong>'+nombreArchivoEliminar+'</strong>';
+			botonEliminar.name=nombreArchivoEliminar;
+			botonEliminar.disabled=false;
+		}
+
+		function eliminarElemento(event){
+			var botonEliminar=document.getElementById("borrarArchivo");
+			var nombreArchivoEliminar=event.target.getAttribute("name");
+			var parametrosDeBorrado={
+				Bucket:bucketName,
+				Key: encodeURIComponent(nombreArchivoEliminar)
+			}
+
+			S3.deleteObject(parametrosDeBorrado, function(err, data) {
+				if(err){
+					console.error(err);
+					
+					return alert("Ocurrio un error al eliminar el elemento"+nombreArchivoEliminar );
+				}
+				botonEliminar.name="";
+				botonEliminar.disabled=true;
+				botonEliminar.innerText="Se eliminará el archivo";
+			listElements();
+			});
+		}
+
+		function uploadFile(){
+			console.log("uploading-...");
+			var archivo=document.getElementById("fileUpload")
+			var nombre=archivo.files[0].name;
+			var stream=archivo.files[0];
+			
+			var opciones={
+				Key:encodeURIComponent(nombre),
+				Body:stream
+			};
+
+			S3.upload(opciones,function(err,data){
+				if (err) {
+					console.error(err);
+					return alert('There was an error uploading your photo: ', err.message);
+				}
+				archivo.parentNode.innerHTML=archivo.parentNode.innerHTML; //reset para el input de tipo file
+				listElements();
+			});
+		}
+
+		listElements();
+
+	</script>
+
+</body>
+
+</html>
